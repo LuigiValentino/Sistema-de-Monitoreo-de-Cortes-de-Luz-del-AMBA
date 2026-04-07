@@ -123,7 +123,7 @@ Esta aplicación es de carácter informativo y educativo. Los datos son recopila
 
 **App desarrollada por Luigi Adducci**
 
-¿Necesitás un sistema a medida para monitoreo de cortes, alertas automáticas, notificaciones por email o WhatsApp? Contactanos:
+¿Necesitás un sistema a medida para monitoreo de cortes, alertas automáticas, notificaciones por email o WhatsApp? Mandame un mensaje:
 
 -  Luigiadduccidev@gmail.com
 -  arcynox.software@gmail.com
