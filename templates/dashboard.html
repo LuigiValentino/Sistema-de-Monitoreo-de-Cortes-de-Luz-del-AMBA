@@ -1,0 +1,2543 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sistema de Monitoreo de Cortes de Luz - AMBA</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Libre+Baskerville:wght@400;700&family=Source+Sans+3:wght@400;600;700&display=swap" rel="stylesheet">
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        :root {
+            --bg-primary: #f5f5f0;
+            --bg-card: #ffffff;
+            --bg-header: #2c3e50;
+            --text-primary: #1a1a1a;
+            --text-secondary: #5a5a5a;
+            --text-light: #ffffff;
+            --border: #d4d4d4;
+            --blue: #1a4c7c;
+            --red: #c41e3a;
+            --orange: #d47500;
+            --green: #2e7d32;
+            --purple: #6a1b9a;
+            --edesur: #c41e3a;
+            --edenor: #1a4c7c;
+            --shadow-sm: 0 1px 3px rgba(0,0,0,0.12);
+            --shadow-md: 0 4px 12px rgba(0,0,0,0.15);
+            --radius: 4px;
+            --radius-lg: 6px;
+        }
+        
+        body {
+            font-family: 'Source Sans 3', 'Segoe UI', Arial, sans-serif;
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            min-height: 100vh;
+            line-height: 1.5;
+        }
+        
+        /* Header - Traditional Style */
+        .header {
+            background: var(--bg-header);
+            border-bottom: 3px solid var(--blue);
+            padding: 0 24px;
+            height: auto;
+            min-height: 60px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            position: sticky;
+            top: 0;
+            z-index: 1000;
+            flex-wrap: wrap;
+        }
+        
+        .header-left {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+        }
+        
+        .header-logo {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            font-weight: 700;
+            font-size: 1.15rem;
+            color: var(--text-light);
+            font-family: 'Libre Baskerville', Georgia, serif;
+            letter-spacing: 0.5px;
+        }
+        
+        .header-logo img {
+            height: 36px;
+            width: auto;
+        }
+        
+        .header-logo i {
+            font-size: 1.4rem;
+            color: var(--orange);
+        }
+        
+        .header-nav {
+            display: flex;
+            gap: 4px;
+        }
+        
+        .nav-item {
+            padding: 8px 18px;
+            border-radius: var(--radius);
+            font-size: 0.9rem;
+            color: var(--text-light);
+            cursor: pointer;
+            transition: all 0.2s;
+            font-weight: 600;
+            border: 1px solid transparent;
+        }
+        
+        .nav-item:hover {
+            background: rgba(255,255,255,0.15);
+            border-color: rgba(255,255,255,0.2);
+        }
+        
+        .nav-item.active {
+            background: var(--text-light);
+            color: var(--bg-header);
+        }
+        
+        .header-right {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+        }
+        
+        .update-time {
+            font-size: 0.85rem;
+            color: rgba(255,255,255,0.8);
+            font-style: italic;
+        }
+        
+        .btn-refresh {
+            background: var(--orange);
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: var(--radius);
+            font-size: 0.9rem;
+            font-weight: 600;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            transition: all 0.2s;
+            box-shadow: var(--shadow-sm);
+        }
+        
+        .btn-refresh:hover {
+            background: #b86500;
+        }
+        
+        /* Main Content */
+        .main {
+            padding: 24px;
+            max-width: 1600px;
+            margin: 0 auto;
+        }
+        
+        /* Stats Cards - Traditional Style */
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 16px;
+            margin-bottom: 24px;
+        }
+        
+        /* Legacy stat-card (unused now, kept for compatibility) */
+        .stat-card { display: none; }
+        
+        /* Content Grid */
+        
+        .stat-card.users .stat-icon { color: var(--orange); opacity: 0.12; }
+        .stat-card.cortes .stat-icon { color: var(--purple); opacity: 0.12; }
+        .stat-card.eds .stat-icon { color: var(--red); opacity: 0.12; }
+        .stat-card.edn .stat-icon { color: var(--blue); opacity: 0.12; }
+        
+        /* Content Grid */
+        .content-grid {
+            display: grid;
+            grid-template-columns: 1fr 360px;
+            gap: 24px;
+            margin-bottom: 24px;
+        }
+        
+        /* Card - Traditional Style */
+        .card {
+            background: var(--bg-card);
+            border-radius: var(--radius-lg);
+            box-shadow: var(--shadow-sm);
+            border: 2px solid var(--border);
+            overflow: hidden;
+        }
+        
+        .card-header {
+            padding: 14px 18px;
+            border-bottom: 2px solid var(--border);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: linear-gradient(to bottom, #fafafa, #f0f0f0);
+        }
+        
+        .card-body {
+            padding: 16px;
+            background: #fafafa;
+            border-top: 1px solid var(--border);
+        }
+        
+        .card-title {
+            font-size: 1rem;
+            font-weight: 700;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            color: var(--text-primary);
+            font-family: 'Libre Baskerville', Georgia, serif;
+        }
+        
+        .card-title i {
+            color: var(--blue);
+        }
+        
+        .card-badge {
+            background: var(--text-primary);
+            color: white;
+            padding: 4px 12px;
+            border-radius: var(--radius);
+            font-size: 0.75rem;
+            font-weight: 600;
+        }
+        
+        /* Map */
+        .map-container {
+            height: 450px;
+            position: relative;
+            border-top: 1px solid var(--border);
+        }
+        
+        #map {
+            height: 100%;
+            width: 100%;
+        }
+        
+        .map-overlay {
+            position: absolute;
+            bottom: 16px;
+            left: 16px;
+            background: white;
+            padding: 12px 16px;
+            border-radius: var(--radius);
+            display: flex;
+            gap: 20px;
+            box-shadow: var(--shadow-md);
+            z-index: 1000;
+            border: 2px solid var(--border);
+        }
+        
+        .map-legend-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 0.85rem;
+            font-weight: 600;
+        }
+        
+        .legend-dot {
+            width: 14px;
+            height: 14px;
+            border-radius: 2px;
+            border: 2px solid var(--text-primary);
+        }
+        
+        .legend-dot.eds { background: var(--red); }
+        .legend-dot.edn { background: var(--blue); }
+        
+        /* Cortes Sidebar */
+        .cortes-sidebar {
+            display: flex;
+            flex-direction: column;
+            max-height: 450px;
+        }
+        
+        .cortes-filters {
+            padding: 14px;
+            border-bottom: 2px solid var(--border);
+            display: flex;
+            gap: 10px;
+            background: #f8f8f8;
+        }
+        
+        .filter-select {
+            flex: 1;
+            padding: 10px 12px;
+            border: 2px solid var(--border);
+            border-radius: var(--radius);
+            font-size: 0.9rem;
+            background: white;
+            color: var(--text-primary);
+            font-family: inherit;
+        }
+        
+        .filter-select:focus {
+            outline: none;
+            border-color: var(--blue);
+        }
+        
+        .cortes-list {
+            flex: 1;
+            overflow-y: auto;
+            padding: 14px;
+            background: #fafafa;
+        }
+        
+        .corte-item {
+            background: white;
+            border: 2px solid var(--border);
+            border-radius: var(--radius);
+            padding: 12px 14px;
+            margin-bottom: 10px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        
+        .corte-item:hover {
+            transform: translateX(4px);
+            border-color: var(--blue);
+            box-shadow: var(--shadow-sm);
+        }
+        
+        .corte-item:last-child { margin-bottom: 0; }
+        
+        .corte-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 8px;
+        }
+        
+        .corte-zona {
+            font-weight: 700;
+            font-size: 0.9rem;
+            color: var(--text-primary);
+        }
+        
+        .corte-loc {
+            font-size: 0.8rem;
+            color: var(--text-secondary);
+        }
+        
+        .corte-badge {
+            padding: 3px 10px;
+            border-radius: var(--radius);
+            font-size: 0.7rem;
+            font-weight: 700;
+            color: white;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        
+        .corte-badge.eds { background: var(--red); }
+        .corte-badge.edn { background: var(--blue); }
+        
+        .corte-stats {
+            display: flex;
+            gap: 14px;
+            font-size: 0.8rem;
+            color: var(--text-secondary);
+            padding-top: 8px;
+            border-top: 1px solid #eee;
+        }
+        
+        .corte-stat {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+        
+        .corte-users {
+            color: var(--orange);
+            font-weight: 700;
+        }
+        
+        /* Charts Grid */
+        .charts-grid {
+            display: grid;
+            grid-template-columns: 2fr 1fr;
+            gap: 24px;
+        }
+        
+        .chart-wrapper {
+            position: relative;
+            height: 260px;
+        }
+        
+        .chart-tabs {
+            display: flex;
+            gap: 2px;
+            margin-bottom: 16px;
+            border-bottom: 2px solid var(--border);
+        }
+        
+        .chart-tab {
+            padding: 8px 16px;
+            border: 2px solid var(--border);
+            border-bottom: none;
+            background: #f0f0f0;
+            border-radius: var(--radius) var(--radius) 0 0;
+            font-size: 0.85rem;
+            cursor: pointer;
+            transition: all 0.2s;
+            font-weight: 600;
+            margin-bottom: -2px;
+        }
+        
+        .chart-tab:hover { background: #e0e0e0; }
+        
+        .chart-tab.active {
+            background: var(--text-primary);
+            color: white;
+            border-color: var(--text-primary);
+        }
+        
+        /* Empty State */
+        .empty-state {
+            text-align: center;
+            padding: 30px;
+            color: var(--text-secondary);
+            border: 2px dashed var(--border);
+            background: #fafafa;
+        }
+        
+        .empty-state i {
+            font-size: 2rem;
+            opacity: 0.3;
+            margin-bottom: 10px;
+        }
+        
+        /* Responsive */
+        @media (max-width: 1200px) {
+            .content-grid { grid-template-columns: 1fr; }
+            .charts-grid { grid-template-columns: 1fr; }
+            .stats-grid { grid-template-columns: repeat(2, 1fr); }
+        }
+        
+        @media (max-width: 768px) {
+            .header { padding: 0 16px; flex-direction: column; gap: 12px; padding-bottom: 12px; }
+            .header-nav { display: none; }
+            .main { padding: 16px; }
+            .stats-grid { grid-template-columns: 1fr; }
+        }
+        
+        /* Scrollbar - Traditional Style */
+        .cortes-list::-webkit-scrollbar { width: 10px; }
+        .cortes-list::-webkit-scrollbar-track { background: #e0e0e0; }
+        .cortes-list::-webkit-scrollbar-thumb { background: #999; border-radius: 2px; }
+        .cortes-list::-webkit-scrollbar-thumb:hover { background: #666; }
+        
+        /* Leaflet Popup - Traditional Style */
+        .leaflet-popup-content-wrapper {
+            border-radius: var(--radius);
+            box-shadow: var(--shadow-md);
+            border: 2px solid var(--border);
+        }
+        
+        .leaflet-popup-content {
+            margin: 0;
+            min-width: 220px;
+        }
+        
+        .popup-inner {
+            padding: 14px;
+        }
+        
+        .popup-title {
+            font-weight: 700;
+            font-size: 1rem;
+            margin-bottom: 10px;
+            padding-bottom: 8px;
+            border-bottom: 2px solid var(--border);
+            font-family: 'Libre Baskerville', Georgia, serif;
+        }
+        
+        .popup-row {
+            display: flex;
+            justify-content: space-between;
+            font-size: 0.9rem;
+            margin-bottom: 6px;
+            padding: 4px 0;
+            border-bottom: 1px solid #eee;
+        }
+        
+        .popup-row:last-child { border-bottom: none; }
+        
+        .popup-label { color: var(--text-secondary); font-weight: 600; }
+        .popup-value { font-weight: 700; }
+        .popup-value.eds { color: var(--red); }
+        .popup-value.edn { color: var(--blue); }
+        .popup-value.users { color: var(--orange); }
+        
+        /* Tabs */
+        .page-section {
+            display: none;
+        }
+        
+        .page-section.active {
+            display: block;
+        }
+        
+        /* Acerca de Section */
+        .acerca-container {
+            max-width: 900px;
+            margin: 0 auto;
+        }
+        
+        .acerca-unified {
+            background: white;
+            border-radius: var(--radius-lg);
+            border: 2px solid var(--border);
+            overflow: hidden;
+        }
+        
+        .acerca-unified-header {
+            background: linear-gradient(135deg, #1a4c7c 0%, #2c3e50 100%);
+            padding: 24px 32px;
+            color: white;
+            border-bottom: 4px solid #ffd700;
+            display: flex;
+            align-items: center;
+            gap: 20px;
+            flex-wrap: wrap;
+        }
+        
+        .acerca-unified-header .app-icon {
+            width: 60px;
+            height: 60px;
+            background: #ffd700;
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+            font-size: 1.8rem;
+            color: #1a4c7c;
+            border: 2px solid white;
+        }
+        
+        .acerca-unified-header .header-text {
+            flex: 1;
+            min-width: 280px;
+        }
+        
+        .acerca-unified-header h1 {
+            font-size: 1.4rem;
+            font-weight: 700;
+            margin: 0 0 4px 0;
+            font-family: 'Libre Baskerville', Georgia, serif;
+            line-height: 1.3;
+        }
+        
+        .acerca-unified-header .subtitle {
+            font-size: 0.9rem;
+            opacity: 0.9;
+            margin: 0;
+        }
+        
+        .acerca-unified-header .version {
+            display: inline-block;
+            background: rgba(255,255,255,0.15);
+            padding: 6px 16px;
+            border-radius: var(--radius);
+            font-size: 0.8rem;
+            border: 1px solid rgba(255,255,255,0.3);
+            white-space: nowrap;
+        }
+        
+        .acerca-unified-body {
+            padding: 32px;
+            background: white;
+        }
+        
+        .acerca-section {
+            margin-bottom: 28px;
+        }
+        
+        .acerca-section:last-child {
+            margin-bottom: 0;
+        }
+        
+        .acerca-section h2 {
+            font-size: 1.1rem;
+            font-weight: 700;
+            color: #1a4c7c;
+            margin-bottom: 14px;
+            padding-bottom: 8px;
+            border-bottom: 2px solid #e0e0e0;
+            font-family: 'Libre Baskerville', Georgia, serif;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .acerca-section h2 i {
+            color: #d47500;
+        }
+        
+        .acerca-section p {
+            font-size: 0.95rem;
+            color: #5a5a5a;
+            line-height: 1.7;
+            margin-bottom: 14px;
+        }
+        
+        .acerca-section ul {
+            list-style: none;
+            padding: 0;
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 10px;
+        }
+        
+        .acerca-section li {
+            padding: 10px 14px;
+            background: #f8f9fa;
+            border-radius: var(--radius);
+            font-size: 0.9rem;
+            color: #5a5a5a;
+            border-left: 3px solid #1a4c7c;
+        }
+        
+        .acerca-section li strong {
+            color: #1a1a1a;
+        }
+        
+        .acerca-section .tech-stack {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+        
+        .acerca-section .tech-item {
+            background: #f0f0f0;
+            padding: 8px 16px;
+            border-radius: var(--radius);
+            font-size: 0.85rem;
+            font-weight: 600;
+            color: #5a5a5a;
+            border: 2px solid #d4d4d4;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .acerca-section .tech-item i {
+            color: #1a4c7c;
+        }
+        
+        .acerca-developer {
+            background: white;
+            border-radius: var(--radius-lg);
+            padding: 24px;
+            margin-top: 24px;
+            text-align: left;
+            border: 2px solid var(--border);
+        }
+        
+        .acerca-developer .dev-header {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            margin-bottom: 16px;
+            padding-bottom: 16px;
+            border-bottom: 2px solid #e0e0e0;
+        }
+        
+        .acerca-developer .dev-logo {
+            width: 126px;
+            height: 126px;
+            object-fit: contain;
+        }
+        
+        .acerca-developer h3 {
+            font-size: 1.2rem;
+            color: #1a4c7c;
+            margin: 0;
+            font-family: 'Libre Baskerville', Georgia, serif;
+        }
+        
+        .acerca-developer .tagline {
+            font-style: italic;
+            color: #5a5a5a;
+            font-size: 0.9rem;
+            margin: 4px 0 0 0;
+        }
+        
+        .acerca-developer p {
+            color: #5a5a5a;
+            font-size: 0.95rem;
+            line-height: 1.6;
+            margin-bottom: 12px;
+        }
+        
+        .acerca-developer .contact-links {
+            display: flex;
+            gap: 24px;
+            flex-wrap: wrap;
+            padding-top: 12px;
+            border-top: 1px solid #e0e0e0;
+        }
+        
+        .acerca-developer .contact-link {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            color: #1a4c7c;
+            text-decoration: none;
+            font-size: 0.9rem;
+            font-weight: 600;
+        }
+        
+        .acerca-developer .contact-link:hover {
+            color: #d47500;
+        }
+        
+        .acerca-disclaimer {
+            background: #fff8e1;
+            border-radius: var(--radius-lg);
+            padding: 20px;
+            display: flex;
+            gap: 14px;
+            align-items: flex-start;
+            border: 2px solid #ffc107;
+            margin-top: 24px;
+        }
+        
+        .acerca-disclaimer i {
+            color: #f57c00;
+            font-size: 1.2rem;
+            margin-top: 2px;
+        }
+        
+        .acerca-disclaimer p {
+            font-size: 0.9rem;
+            color: #5d4037;
+            line-height: 1.5;
+            margin: 0;
+        }
+        
+        .acerca-disclaimer strong {
+            color: #3e2723;
+        }
+        
+        /* Información Tab */
+        .info-container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        
+        .info-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 24px;
+            flex-wrap: wrap;
+            gap: 20px;
+        }
+        
+        .info-header h2 {
+            font-size: 1.3rem;
+            font-weight: 700;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            color: var(--text-primary);
+            font-family: 'Libre Baskerville', Georgia, serif;
+        }
+        
+        .info-header h2 i {
+            color: var(--blue);
+        }
+        
+        .info-search {
+            position: relative;
+            width: 300px;
+        }
+        
+        .info-search input {
+            width: 100%;
+            padding: 12px 14px 12px 42px;
+            border: 2px solid var(--border);
+            border-radius: var(--radius);
+            font-size: 0.9rem;
+            background: var(--bg-card);
+            transition: all 0.2s;
+        }
+        
+        .info-search input:focus {
+            outline: none;
+            border-color: var(--blue);
+        }
+        
+        .info-search i {
+            position: absolute;
+            left: 14px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: var(--text-secondary);
+        }
+        
+        .info-tabs {
+            display: flex;
+            gap: 4px;
+            margin-bottom: 24px;
+            border-bottom: 2px solid var(--border);
+        }
+        
+        .info-tab {
+            padding: 12px 24px;
+            border: 2px solid var(--border);
+            border-bottom: none;
+            border-radius: var(--radius) var(--radius) 0 0;
+            font-size: 0.9rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+            margin-bottom: -2px;
+            
+        }
+        
+        .info-tab:hover {
+            background: #e0e0e0;
+        }
+        
+        .info-tab.active {
+            background: var(--text-primary);
+            color: white;
+            border-color: var(--text-primary);
+        }
+        
+        .info-table-container {
+            background: var(--bg-card);
+            border-radius: var(--radius-lg);
+            border: 2px solid var(--border);
+            overflow: hidden;
+            box-shadow: var(--shadow-sm);
+        }
+        
+        .info-table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        
+        .info-table th {
+            background: #e8eef4;
+            padding: 14px;
+            text-align: left;
+            font-size: 0.8rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            color: var(--text-primary);
+            border-bottom: 2px solid var(--border);
+        }
+        
+        .info-table td {
+            padding: 12px 14px;
+            font-size: 0.9rem;
+            border-bottom: 1px solid #e0e0e0;
+            color: var(--text-primary);
+        }
+        
+        .info-table tr:hover {
+            background: #f5f5f5;
+        }
+        
+        .info-table .empresa-tag {
+            padding: 5px 12px;
+            border-radius: var(--radius);
+            font-size: 0.75rem;
+            font-weight: 700;
+        }
+        
+        .info-table .empresa-tag.eds {
+            background: #ffebee;
+            color: var(--red);
+            border: 1px solid var(--red);
+        }
+        
+        .info-table .empresa-tag.edn {
+            background: #e3f2fd;
+            color: var(--blue);
+            border: 1px solid var(--blue);
+        }
+        
+        .empresas-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 24px;
+            padding: 24px;
+        }
+        
+        .empresa-card {
+            background: #f8f8f8;
+            border-radius: var(--radius-lg);
+            padding: 24px;
+            border: 2px solid var(--border);
+            transition: all 0.3s;
+        }
+        
+        .empresa-card:hover {
+            background: white;
+            box-shadow: var(--shadow-md);
+        }
+        
+        .empresa-card.edesur:hover {
+            border-color: var(--red);
+        }
+        
+        .empresa-card.edenor:hover {
+            border-color: var(--blue);
+        }
+        
+        .empresa-header {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            margin-bottom: 18px;
+            padding-bottom: 14px;
+            border-bottom: 2px solid var(--border);
+        }
+        
+        .empresa-header img {
+            width: 56px;
+            height: 56px;
+            object-fit: contain;
+            border-radius: var(--radius);
+            background: white;
+            padding: 4px;
+            border: 1px solid var(--border);
+        }
+        
+        .empresa-header h3 {
+            font-size: 1.2rem;
+            font-weight: 700;
+            font-family: 'Libre Baskerville', Georgia, serif;
+        }
+        
+        .empresa-header.edesur h3 {
+            color: var(--red);
+        }
+        
+        .empresa-header.edenor h3 {
+            color: var(--blue);
+        }
+        
+        .empresa-stats {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+        
+        .empresa-stat {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 12px 14px;
+            background: white;
+            border-radius: var(--radius);
+            border: 1px solid var(--border);
+        }
+        
+        .empresa-stat .stat-label {
+            font-size: 0.9rem;
+            font-weight: 600;
+            color: var(--text-secondary);
+        }
+        
+        .empresa-stat .stat-value {
+            font-size: 1rem;
+            font-weight: 700;
+            color: var(--text-primary);
+        }
+        
+        .empresa-stat .stat-value.highlight {
+            color: var(--orange);
+        }
+        
+        /* Dashboard Layout */
+        .stats-grid-main {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 20px;
+            margin-bottom: 20px;
+        }
+        
+        .stat-card-large {
+            background: var(--bg-card);
+            border-radius: var(--radius-lg);
+            padding: 24px;
+            border: 2px solid var(--border);
+            position: relative;
+            overflow: hidden;
+            transition: all 0.3s;
+        }
+        
+        .stat-card-large:hover {
+            border-color: var(--blue);
+            box-shadow: var(--shadow-md);
+        }
+        
+        .stat-card-large::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 8px;
+            height: 100%;
+        }
+        
+        .stat-card-large.users::before { background: var(--orange); }
+        .stat-card-large.cortes::before { background: var(--purple); }
+        
+        .stat-card-content {
+            display: flex;
+            align-items: center;
+            gap: 18px;
+        }
+        
+        .stat-icon-bg {
+            width: 60px;
+            height: 60px;
+            border-radius: var(--radius);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.6rem;
+            border: 2px solid var(--border);
+            background: #f8f8f8;
+        }
+        
+        .stat-card-large.users .stat-icon-bg {
+            background: #fff8e1;
+            color: var(--orange);
+            border-color: var(--orange);
+        }
+        
+        .stat-card-large.cortes .stat-icon-bg {
+            background: #f3e5f5;
+            color: var(--purple);
+            border-color: var(--purple);
+        }
+        
+        .stat-main-info {
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .stat-card-large .stat-label {
+            font-size: 0.85rem;
+            font-weight: 700;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 4px;
+        }
+        
+        .stat-value-large {
+            font-size: 2.2rem;
+            font-weight: 700;
+            line-height: 1;
+            font-family: 'Libre Baskerville', Georgia, serif;
+        }
+        
+        .stat-card-large.users .stat-value-large { color: var(--orange); }
+        .stat-card-large.cortes .stat-value-large { color: var(--purple); }
+        
+        .stat-sub {
+            font-size: 0.8rem;
+            color: var(--text-secondary);
+            margin-top: 4px;
+        }
+        
+        /* Company Stats Row */
+        .stats-grid-companies {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 20px;
+            margin-bottom: 20px;
+        }
+        
+        .stat-card-company {
+            background: var(--bg-card);
+            border-radius: var(--radius-lg);
+            padding: 20px;
+            border: 2px solid var(--border);
+            transition: all 0.3s;
+        }
+        
+        .stat-card-company:hover {
+            box-shadow: var(--shadow-md);
+        }
+        
+        .stat-card-company.eds { border-left: 6px solid var(--red); }
+        .stat-card-company.edn { border-left: 6px solid var(--blue); }
+        
+        .company-header-stat {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 14px;
+            margin-bottom: 16px;
+            padding-bottom: 12px;
+            border-bottom: 2px solid var(--border);
+        }
+        
+        .company-logo-dashboard {
+            width: 64px;
+            height: 64px;
+            object-fit: contain;
+            background: white;
+            padding: 4px;
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+        }
+        
+        .company-icon-small {
+            width: 48px;
+            height: 48px;
+            object-fit: contain;
+            border-radius: var(--radius);
+            background: white;
+            padding: 4px;
+            border: 1px solid var(--border);
+        }
+        
+        .company-name {
+            font-size: 1.1rem;
+            font-weight: 700;
+            display: block;
+            font-family: 'Libre Baskerville', Georgia, serif;
+        }
+        
+        .stat-card-company.eds .company-name { color: var(--red); }
+        .stat-card-company.edn .company-name { color: var(--blue); }
+        
+        .company-sub {
+            font-size: 0.8rem;
+            color: var(--text-secondary);
+            font-weight: 600;
+        }
+        
+        .company-stats-row {
+            display: flex;
+            gap: 14px;
+        }
+        
+        .company-stat-item {
+            flex: 1;
+            text-align: center;
+            padding: 14px;
+            background: #f8f8f8;
+            border-radius: var(--radius);
+            border: 1px solid var(--border);
+        }
+        
+        .company-stat-item .num {
+            display: block;
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: var(--text-primary);
+        }
+        
+        .company-stat-item .lbl {
+            font-size: 0.75rem;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+            font-weight: 700;
+        }
+        
+        .company-stat-item.highlight .num {
+            color: var(--orange);
+        }
+        
+        /* Quick Stats */
+        .quick-stats-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 16px;
+            margin-bottom: 24px;
+        }
+        
+        .quick-stat {
+            display: flex;
+            align-items: center;
+            gap: 14px;
+            padding: 16px 18px;
+            background: var(--bg-card);
+            border-radius: var(--radius);
+            border: 2px solid var(--border);
+        }
+        
+        .quick-stat > i {
+            font-size: 1.3rem;
+            color: var(--blue);
+            width: 28px;
+            text-align: center;
+        }
+        
+        .qs-value {
+            display: block;
+            font-size: 1.1rem;
+            font-weight: 700;
+            color: var(--text-primary);
+        }
+        
+        .qs-label {
+            font-size: 0.75rem;
+            color: var(--text-secondary);
+            font-weight: 600;
+        }
+        
+        /* Dashboard Charts */
+        .dashboard-charts {
+            display: grid;
+            grid-template-columns: 2fr 1fr 1fr;
+            gap: 20px;
+            margin-bottom: 20px;
+        }
+        
+        .chart-card {
+            min-height: 320px;
+        }
+        
+        .chart-card-small {
+            min-height: 320px;
+        }
+        
+        .top-partidos {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+        
+        .top-partido-item {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 12px 14px;
+            background: #f8f8f8;
+            border-radius: var(--radius);
+            border: 1px solid var(--border);
+        }
+        
+        .top-partido-rank {
+            width: 26px;
+            height: 26px;
+            background: var(--text-primary);
+            color: white;
+            border-radius: var(--radius);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.8rem;
+            font-weight: 700;
+        }
+        
+        .top-partido-name {
+            flex: 1;
+            font-size: 0.9rem;
+            font-weight: 600;
+        }
+        
+        .top-partido-count {
+            font-size: 0.9rem;
+            font-weight: 700;
+            color: var(--red);
+        }
+        
+        .empty-state-small {
+            text-align: center;
+            padding: 20px;
+            color: var(--text-secondary);
+            font-size: 0.9rem;
+            border: 1px dashed var(--border);
+            background: #fafafa;
+        }
+        
+        /* Last Update Bar */
+        .last-update-bar {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 16px;
+            padding: 16px;
+            background: var(--bg-card);
+            border-radius: var(--radius-lg);
+            border: 2px solid var(--border);
+            font-size: 0.9rem;
+            color: var(--text-secondary);
+        }
+        
+        .last-update-bar i.fa-spin {
+            color: var(--blue);
+        }
+        
+        .btn-refresh-small {
+            background: var(--blue);
+            color: white;
+            border: none;
+            padding: 10px 18px;
+            border-radius: var(--radius);
+            font-size: 0.85rem;
+            font-weight: 600;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            transition: all 0.2s;
+        }
+        
+        .btn-refresh-small:hover {
+            background: #153d5f;
+        }
+        
+        /* Responsive */
+        @media (max-width: 1200px) {
+            .dashboard-charts {
+                grid-template-columns: 1fr 1fr;
+            }
+            .dashboard-charts .chart-card:first-child {
+                grid-column: span 2;
+            }
+        }
+        
+        @media (max-width: 768px) {
+            .stats-grid-main { grid-template-columns: 1fr; }
+            .stats-grid-companies { grid-template-columns: 1fr; }
+            .quick-stats-grid { grid-template-columns: repeat(2, 1fr); }
+            .dashboard-charts { grid-template-columns: 1fr; }
+            .dashboard-charts .chart-card:first-child { grid-column: span 1; }
+        }
+        .info-stats-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 16px;
+            margin-bottom: 24px;
+        }
+        
+        .info-stat-card {
+            background: var(--bg-card);
+            border-radius: var(--radius-lg);
+            padding: 20px;
+            border: 2px solid var(--border);
+            text-align: center;
+        }
+        
+        .info-stat-card .stat-number {
+            font-size: 1.8rem;
+            font-weight: 700;
+            color: var(--text-primary);
+            font-family: 'Libre Baskerville', Georgia, serif;
+        }
+        
+        .info-stat-card .stat-label {
+            font-size: 0.8rem;
+            color: var(--text-secondary);
+            margin-top: 4px;
+            font-weight: 600;
+        }
+        
+        .text-center { text-align: center; }
+        .py-4 { padding-top: 1rem; padding-bottom: 1rem; }
+        
+        /* Single About Card */
+        .acerca-single {
+            background: var(--bg-card);
+            border-radius: var(--radius-lg);
+            padding: 0;
+            margin-bottom: 24px;
+            border: 2px solid var(--border);
+            overflow: hidden;
+        }
+        
+        .acerca-single-header {
+            background: linear-gradient(135deg, #1a4c7c 0%, #2c3e50 100%);
+            padding: 20px 24px;
+            color: white;
+            display: flex;
+            align-items: center;
+            gap: 14px;
+            border-bottom: 3px solid #ffd700;
+        }
+        
+        .acerca-single-header i {
+            font-size: 1.4rem;
+            color: #ffd700;
+        }
+        
+        .acerca-single-header h3 {
+            font-size: 1.15rem;
+            font-weight: 700;
+            margin: 0;
+            color: white;
+            font-family: 'Libre Baskerville', Georgia, serif;
+        }
+        
+        .acerca-single-body {
+            padding: 20px 24px;
+            background: white;
+        }
+        
+        .acerca-single-body p {
+            font-size: 0.95rem;
+            color: var(--text-secondary);
+            line-height: 1.6;
+            margin-bottom: 14px;
+        }
+        
+        .acerca-single-body p:last-child {
+            margin-bottom: 0;
+        }
+        
+        .acerca-single-body ul {
+            list-style: none;
+            padding: 0;
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 10px;
+            margin-top: 14px;
+        }
+        
+        .acerca-single-body li {
+            padding: 12px 16px;
+            background: #f8f9fa;
+            border-radius: var(--radius);
+            font-size: 0.9rem;
+            color: var(--text-secondary);
+            border-left: 3px solid var(--blue);
+            display: flex;
+            align-items: flex-start;
+            gap: 8px;
+        }
+        
+        .acerca-single-body li strong {
+            color: var(--text-primary);
+            min-width: 100px;
+        }
+        
+        .acerca-single-body li span {
+            flex: 1;
+        }
+        
+        /* Footer */
+        .site-footer {
+            background: var(--bg-header);
+            border-top: 3px solid var(--blue);
+            padding: 30px 24px;
+            margin-top: 40px;
+        }
+        
+        .footer-content {
+            max-width: 1100px;
+            margin: 0 auto;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 24px;
+        }
+        
+        .footer-brand {
+            display: flex;
+            align-items: center;
+            gap: 14px;
+        }
+        
+        .footer-logo {
+            width: 48px;
+            height: 48px;
+            object-fit: contain;
+            background: white;
+            border-radius: var(--radius);
+            padding: 4px;
+            border: 1px solid rgba(255,255,255,0.2);
+        }
+        
+        .footer-info h4 {
+            color: white;
+            font-size: 1rem;
+            font-weight: 700;
+            font-family: 'Libre Baskerville', Georgia, serif;
+            margin-bottom: 4px;
+        }
+        
+        .footer-info p {
+            color: rgba(255,255,255,0.7);
+            font-size: 0.85rem;
+            margin: 0;
+        }
+        
+        .footer-links {
+            display: flex;
+            gap: 24px;
+        }
+        
+        .footer-link {
+            color: rgba(255,255,255,0.7);
+            font-size: 0.9rem;
+            text-decoration: none;
+            transition: color 0.2s;
+        }
+        
+        .footer-link:hover {
+            color: white;
+        }
+        
+        .footer-copyright {
+            text-align: center;
+            padding-top: 20px;
+            border-top: 1px solid rgba(255,255,255,0.15);
+            margin-top: 24px;
+            color: rgba(255,255,255,0.5);
+            font-size: 0.8rem;
+        }
+        
+        @media (max-width: 768px) {
+            .acerca-section ul { grid-template-columns: 1fr; }
+            .acerca-unified-body { padding: 20px; }
+            .acerca-unified-header { 
+                padding: 20px; 
+                flex-direction: column;
+                text-align: center;
+                gap: 16px;
+            }
+            .acerca-unified-header .app-icon {
+                width: 50px;
+                height: 50px;
+                font-size: 1.4rem;
+            }
+            .acerca-unified-header .header-text {
+                min-width: auto;
+            }
+            .acerca-unified-header h1 { text-align: center; font-size: 1.2rem; }
+            .acerca-unified-header .subtitle { text-align: center; }
+            .acerca-unified-header .version { display: block; margin-top: 8px; width: 100%; }
+            .acerca-developer { padding: 20px; }
+            .acerca-developer .contact-links { flex-direction: column; gap: 12px; }
+            .header-logo span { display: none; }
+            .header-logo img { height: 32px; }
+        }
+    </style>
+</head>
+<body>
+    <header class="header">
+        <div class="header-left">
+            <div class="header-logo">
+                <span>SMC Luz</span>
+            </div>
+            <nav class="header-nav">
+                <div class="nav-item active" data-tab="dashboard">Dashboard</div>
+                <div class="nav-item" data-tab="info">Información</div>
+                <div class="nav-item" data-tab="acerca">Acerca de</div>
+            </nav>
+        </div>
+        <div class="header-right">
+            <span class="update-time" id="lastUpdate">
+                <i class="far fa-clock me-1"></i>Actualizando...
+            </span>
+            <button class="btn-refresh" onclick="refreshData()">
+                <i class="fas fa-rotate"></i>
+                Actualizar
+            </button>
+        </div>
+    </header>
+
+    <main class="main">
+        <!-- Dashboard Tab -->
+        <section id="tab-dashboard" class="page-section active">
+        
+        <!-- Stats Row 1 - Main -->
+        <div class="stats-grid-main">
+            <div class="stat-card-large users">
+                <div class="stat-card-content">
+                    <div class="stat-icon-bg"><i class="fas fa-bolt"></i></div>
+                    <div class="stat-main-info">
+                        <span class="stat-label">Usuarios Sin Luz</span>
+                        <span class="stat-value-large" id="statUsers">-</span>
+                        <span class="stat-sub">afectados actualmente</span>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="stat-card-large cortes">
+                <div class="stat-card-content">
+                    <div class="stat-icon-bg"><i class="fas fa-power-off"></i></div>
+                    <div class="stat-main-info">
+                        <span class="stat-label">Cortes Activos</span>
+                        <span class="stat-value-large" id="statCortes">-</span>
+                        <span class="stat-sub">interrupciones en curso</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Stats Row 2 - By Company -->
+        <div class="stats-grid-companies">
+            <div class="stat-card-company eds">
+                <div class="company-header-stat">
+                    <img src="/static/images/edesur.png" alt="EDESUR" class="company-logo-dashboard">
+                </div>
+                <div class="company-stats-row">
+                    <div class="company-stat-item">
+                        <span class="num" id="edsCortes">-</span>
+                        <span class="lbl">Cortes</span>
+                    </div>
+                    <div class="company-stat-item highlight">
+                        <span class="num" id="edsUsers">-</span>
+                        <span class="lbl">Usuarios</span>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="stat-card-company edn">
+                <div class="company-header-stat">
+                    <img src="/static/images/edenor.png" alt="EDENOR" class="company-logo-dashboard">
+                </div>
+                <div class="company-stats-row">
+                    <div class="company-stat-item">
+                        <span class="num" id="ednCortes">-</span>
+                        <span class="lbl">Cortes</span>
+                    </div>
+                    <div class="company-stat-item highlight">
+                        <span class="num" id="ednUsers">-</span>
+                        <span class="lbl">Usuarios</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Quick Stats Row -->
+        <div class="quick-stats-grid">
+            <div class="quick-stat">
+                <i class="fas fa-clock"></i>
+                <div>
+                    <span class="qs-value" id="avgDuration">-</span>
+                    <span class="qs-label">Duración Promedio</span>
+                </div>
+            </div>
+            <div class="quick-stat">
+                <i class="fas fa-bolt"></i>
+                <div>
+                    <span class="qs-value" id="mtCount">-</span>
+                    <span class="qs-label">Media Tensión</span>
+                </div>
+            </div>
+            <div class="quick-stat">
+                <i class="fas fa-lightbulb"></i>
+                <div>
+                    <span class="qs-value" id="btCount">-</span>
+                    <span class="qs-label">Baja Tensión</span>
+                </div>
+            </div>
+            <div class="quick-stat">
+                <i class="fas fa-exclamation-triangle"></i>
+                <div>
+                    <span class="qs-value" id="avgRestoration">-</span>
+                    <span class="qs-label">Tiempo Rest. Estimado</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Map + Cortes -->
+        <div class="content-grid">
+            <div class="card">
+                <div class="card-header">
+                    <h2 class="card-title">
+                        <i class="fas fa-map-location-dot"></i>
+                        Mapa de Cortes en Tiempo Real
+                    </h2>
+                    <span class="card-badge" id="mapBadge">0 ubicaciones</span>
+                </div>
+                <div class="map-container">
+                    <div id="map"></div>
+                    <div class="map-overlay">
+                        <div class="map-legend-item">
+                            <div class="legend-dot eds"></div>
+                            <span>EDESUR</span>
+                        </div>
+                        <div class="map-legend-item">
+                            <div class="legend-dot edn"></div>
+                            <span>EDENOR</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card cortes-sidebar">
+                <div class="card-header">
+                    <h2 class="card-title">
+                        <i class="fas fa-list"></i>
+                        Cortes Activos Recientes
+                    </h2>
+                    <span class="card-badge" id="totalBadge">0</span>
+                </div>
+                <div class="cortes-filters">
+                    <select class="filter-select" id="filterEmpresa" onchange="loadCortes()">
+                        <option value="">Todas las Empresas</option>
+                        <option value="EDESUR">EDESUR</option>
+                        <option value="EDENOR">EDENOR</option>
+                    </select>
+                    <select class="filter-select" id="filterTipo" onchange="loadCortes()">
+                        <option value="">Todos los Tipos</option>
+                        <option value="MT">Media Tensión</option>
+                        <option value="BT">Baja Tensión</option>
+                    </select>
+                </div>
+                <div class="cortes-list" id="cortesList">
+                    <div class="empty-state">
+                        <i class="fas fa-circle-notch fa-spin"></i>
+                        <p>Cargando...</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Charts Row -->
+        <div class="dashboard-charts">
+            <div class="card chart-card">
+                <div class="card-header">
+                    <h2 class="card-title">
+                        <i class="fas fa-chart-line"></i>
+                        Evolución de Cortes - Últimos 7 días
+                    </h2>
+                </div>
+                <div class="card-body">
+                    <div class="chart-tabs">
+                        <button class="chart-tab active" onclick="setRange(7)">7 días</button>
+                        <button class="chart-tab" onclick="setRange(14)">14 días</button>
+                        <button class="chart-tab" onclick="setRange(30)">30 días</button>
+                    </div>
+                    <div class="chart-wrapper">
+                        <canvas id="chartEvolucion"></canvas>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="card chart-card-small">
+                <div class="card-header">
+                    <h2 class="card-title">
+                        <i class="fas fa-chart-pie"></i>
+                        Distribución por Tipo
+                    </h2>
+                </div>
+                <div class="card-body">
+                    <div class="chart-wrapper">
+                        <canvas id="chartTipos"></canvas>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="card chart-card-small">
+                <div class="card-header">
+                    <h2 class="card-title">
+                        <i class="fas fa-chart-bar"></i>
+                        Top 5 Partidos Afectados
+                    </h2>
+                </div>
+                <div class="card-body">
+                    <div class="top-partidos" id="topPartidos">
+                        <div class="empty-state-small">Cargando...</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        </section>
+        
+        <!-- Acerca de Tab -->
+        <section id="tab-acerca" class="page-section">
+            <div class="acerca-container">
+                <div class="acerca-unified">
+                    <div class="acerca-unified-header">
+                        <div class="header-text">
+                            <h1>Sistema de Monitoreo de Cortes de Luz del AMBA</h1>
+                            <p class="subtitle">Seguimiento en tiempo real de los cortes de energía eléctrica en el Área Metropolitana de Buenos Aires</p>
+                        </div>
+                        <div class="version">Versión 1.0.0 | Actualizado: <span id="lastUpdateBadge">-</span></div>
+                    </div>
+                    
+                    <div class="acerca-unified-body">
+                        <div class="acerca-section">
+                            <h2><i class="fas fa-info-circle"></i> Acerca de la Aplicación</h2>
+                            <p>Monitor de Cortes de Luz es una aplicación de seguimiento en tiempo real de los cortes de energía eléctrica en el Área Metropolitana de Buenos Aires (AMBA). Recopila datos oficiales del ENRE (Ente Nacional de Regulación de la Electricidad) sobre interrupciones de servicio de EDESUR y EDENOR, actualizándose automáticamente cada 5 minutos.</p>
+                            <ul>
+                                <li><strong>Datos:</strong> Información oficial del ENRE</li>
+                                <li><strong>Cobertura:</strong> 20 partidos del AMBA</li>
+                                <li><strong>Tipo de cortes:</strong> Media Tensión (MT) y Baja Tensión (BT)</li>
+                                <li><strong>Empresas:</strong> EDESUR (sur) y EDENOR (norte)</li>
+                            </ul>
+                        </div>
+                        
+                        <div class="acerca-section">
+                            <h2><i class="fas fa-question-circle"></i> Cómo Usar</h2>
+                            <p>Esta herramienta te permite monitorear los cortes de luz en el AMBA de manera sencilla. Desde el Dashboard podés ver estadísticas generales, el mapa interactivo con la ubicación de los cortes y una lista de los cortes activos recientes. Podés filtrar por empresa (EDESUR/EDENOR) y tipo de tensión usando los menús desplegables.</p>
+                            <ul>
+                                <li><strong>Dashboard:</strong> Vista principal con estadísticas y mapa</li>
+                                <li><strong>Mapa:</strong> Clic en círculos para ver detalles</li>
+                                <li><strong>Gráficos:</strong> Evolución histórica 7/14/30 días</li>
+                                <li><strong>Información:</strong> Tabla completa con búsqueda</li>
+                            </ul>
+                        </div>
+                        
+                        <div class="acerca-section">
+                            <h2><i class="fas fa-server"></i> Cómo Funciona el Monitoreo</h2>
+                            <p>El sistema funciona mediante un monitoreo automático que se ejecuta en segundo plano en el servidor local. Un script de Python extrae los datos publicados por el ENRE y el scheduler (APScheduler) ejecuta la actualización cada 5 minutos automáticamente. Los datos se almacenan en una base de datos SQLite local con historial, las direcciones se geocodifican para mostrarse en el mapa, y Flask serve los datos al frontend mediante una API REST.</p>
+                        </div>
+                        
+                        <div class="acerca-section">
+                            <h2><i class="fas fa-code"></i> Stack Tecnológico</h2>
+                            <div class="tech-stack">
+                                <div class="tech-item"><i class="fab fa-python"></i> Python</div>
+                                <div class="tech-item"><i class="fas fa-flask"></i> Flask</div>
+                                <div class="tech-item"><i class="fas fa-database"></i> SQLite</div>
+                                <div class="tech-item"><i class="fab fa-js"></i> JavaScript</div>
+                                <div class="tech-item"><i class="fas fa-leaflet"></i> Leaflet</div>
+                                <div class="tech-item"><i class="fas fa-chart-bar"></i> Chart.js</div>
+                                <div class="tech-item"><i class="fab fa-bootstrap"></i> Bootstrap</div>
+                                <div class="tech-item"><i class="fas fa-sync"></i> APScheduler</div>
+                            </div>
+                        </div>
+                        
+                        <div class="acerca-disclaimer">
+                            <i class="fas fa-exclamation-triangle"></i>
+                            <p><strong>Nota Importante:</strong> Los datos mostrados son recopilados automáticamente del ENRE y pueden presentar demora respecto a los informados oficialmente. Esta aplicación es de carácter informativo y educativo, no tiene vinculación con las empresas distribuidoras EDESUR ni EDENOR.</p>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="acerca-developer">
+                    <div class="dev-header">
+                        <img src="/static/images/arcynox.png" alt="Arcynox" class="dev-logo">
+                        <div>
+                            <p class="tagline">Desarrollo de Software a Medida</p>
+                        </div>
+                    </div>
+                    <p>Esta aplicación fue desarrollada por <strong>Luigi Adducci</strong> como una herramienta de uso libre para el monitoreo de cortes de luz en el AMBA.</p>
+                    <p>Arcynox es una marca de informática especializada en el desarrollo de soluciones tecnológicas personalizadas. Si necesitás un sistema a medida para monitoreo de cortes de luz, alertas automáticas, notificaciones por email o WhatsApp, o cualquier otro desarrollo relacionado con este tipo de servicios, no dudes en contactarnos.</p>
+                    <div class="contact-links">
+                        <a href="mailto:Luigiadduccidev@gmail.com" class="contact-link">
+                            <i class="fas fa-envelope"></i> Luigiadduccidev@gmail.com
+                        </a>
+                        <a href="mailto:arcynox.software@gmail.com" class="contact-link">
+                            <i class="fas fa-envelope"></i> arcynox.software@gmail.com
+                        </a>
+                        <a href="https://github.com/LuigiValentino" class="contact-link">
+                            <i class="fab fa-github-square"></i> LuigiValentino
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </section>
+        
+        <!-- Información Tab -->
+        <section id="tab-info" class="page-section">
+            <div class="info-container">
+                <div class="info-header">
+                    <h2><i class="fas fa-database"></i> Base de Datos de Cortes de Luz</h2>
+                    <div class="info-search">
+                        <input type="text" id="searchInput" placeholder="Buscar por partido, localidad, empresa..." onkeyup="filterCortes()">
+                        <i class="fas fa-search"></i>
+                    </div>
+                </div>
+                
+                <!-- Stats overview -->
+                <div class="info-stats-grid" id="infoStatsGrid">
+                    <div class="info-stat-card">
+                        <div class="stat-number" id="infoTotalCortes" style="color: var(--red);">-</div>
+                        <div class="stat-label">Total Cortes Activos</div>
+                    </div>
+                    <div class="info-stat-card">
+                        <div class="stat-number" id="infoTotalUsers" style="color: var(--orange);">-</div>
+                        <div class="stat-label">Usuarios Afectados</div>
+                    </div>
+                    <div class="info-stat-card">
+                        <div class="stat-number" id="infoEdesurCount" style="color: var(--red);">-</div>
+                        <div class="stat-label">Cortes EDESUR</div>
+                    </div>
+                    <div class="info-stat-card">
+                        <div class="stat-number" id="infoEdenorCount" style="color: var(--blue);">-</div>
+                        <div class="stat-label">Cortes EDENOR</div>
+                    </div>
+                </div>
+                
+                <div class="info-tabs">
+                    <button class="info-tab active" data-info-tab="activos"><i class="fas fa-bolt"></i> Cortes Activos</button>
+                    <button class="info-tab" data-info-tab="historial"><i class="fas fa-history"></i> Historial</button>
+                    <button class="info-tab" data-info-tab="empresas"><i class="fas fa-building"></i> Por Empresa</button>
+                </div>
+                
+                <div id="info-content-activos" class="info-table-container">
+                    <table class="info-table" id="tableActivos">
+                        <thead>
+                            <tr>
+                                <th>Partido</th>
+                                <th>Localidad</th>
+                                <th>Empresa</th>
+                                <th>Tipo</th>
+                                <th>Usuarios</th>
+                                <th>Duración</th>
+                                <th>Inicio</th>
+                            </tr>
+                        </thead>
+                        <tbody id="activosBody">
+                            <tr><td colspan="7" class="text-center py-4"><i class="fas fa-spinner fa-spin"></i> Cargando datos...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+                
+                <div id="info-content-historial" class="info-table-container" style="display: none;">
+                    <table class="info-table" id="tableHistorial">
+                        <thead>
+                            <tr>
+                                <th>Fecha</th>
+                                <th>Partido</th>
+                                <th>Localidad</th>
+                                <th>Empresa</th>
+                                <th>Usuarios</th>
+                            </tr>
+                        </thead>
+                        <tbody id="historialBody">
+                            <tr><td colspan="5" class="text-center py-4"><i class="fas fa-spinner fa-spin"></i> Cargando datos...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+                
+                <div id="info-content-empresas" class="info-table-container" style="display: none;">
+                    <div class="empresas-grid">
+                        <div class="empresa-card edesur" id="cardEdesur">
+                            <div class="empresa-header edesur">
+                                <img src="/static/images/edesur.png" alt="EDESUR">
+                                <h3>EDESUR</h3>
+                            </div>
+                            <div class="empresa-stats">
+                                <div class="empresa-stat">
+                                    <span class="stat-label"><i class="fas fa-bolt"></i> Cortes Activos</span>
+                                    <span class="stat-value" id="edesurActivos">-</span>
+                                </div>
+                                <div class="empresa-stat">
+                                    <span class="stat-label"><i class="fas fa-users"></i> Usuarios Afectados</span>
+                                    <span class="stat-value highlight" id="edesurUsers">-</span>
+                                </div>
+                                <div class="empresa-stat">
+                                    <span class="stat-label"><i class="fas fa-clock"></i> Promedio Duración</span>
+                                    <span class="stat-value" id="edesurPromedio">-</span>
+                                </div>
+                                <div class="empresa-stat">
+                                    <span class="stat-label"><i class="fas fa-chart-pie"></i> Tipo Mayoritario</span>
+                                    <span class="stat-value" id="edesurTipo">-</span>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="empresa-card edenor" id="cardEdenor">
+                            <div class="empresa-header edenor">
+                                <img src="/static/images/edenor.png" alt="EDENOR">
+                                <h3>EDENOR</h3>
+                            </div>
+                            <div class="empresa-stats">
+                                <div class="empresa-stat">
+                                    <span class="stat-label"><i class="fas fa-bolt"></i> Cortes Activos</span>
+                                    <span class="stat-value" id="edenorActivos">-</span>
+                                </div>
+                                <div class="empresa-stat">
+                                    <span class="stat-label"><i class="fas fa-users"></i> Usuarios Afectados</span>
+                                    <span class="stat-value highlight" id="edenorUsers">-</span>
+                                </div>
+                                <div class="empresa-stat">
+                                    <span class="stat-label"><i class="fas fa-clock"></i> Promedio Duración</span>
+                                    <span class="stat-value" id="edenorPromedio">-</span>
+                                </div>
+                                <div class="empresa-stat">
+                                    <span class="stat-label"><i class="fas fa-chart-pie"></i> Tipo Mayoritario</span>
+                                    <span class="stat-value" id="edenorTipo">-</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+</section>
+    </main>
+
+    <script>
+        let map;
+        let chartEvolucion, chartTipos;
+        let currentRange = 7;
+        let allCortes = [];
+        let mapMarkers = [];
+
+        const COLORS = {
+            'EDESUR': '#ff3b30',
+            'EDENOR': '#0071e3',
+            'MT': '#ff3b30',
+            'BT': '#0071e3'
+        };
+
+        function initMap() {
+            map = L.map('map', {
+                center: [-34.6, -58.45],
+                zoom: 10,
+                scrollWheelZoom: true
+            });
+            
+            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                attribution: '&copy; OpenStreetMap'
+            }).addTo(map);
+        }
+
+        async function loadData() {
+            try {
+                // Load stats
+                const statsResp = await fetch('/api/estadisticas');
+                const stats = await statsResp.json();
+                
+                // Main stats
+                document.getElementById('statUsers').textContent = formatNumber(stats.total_usuarios_afectados);
+                document.getElementById('statCortes').textContent = stats.total_cortes_activos;
+                
+                // Company stats
+                document.getElementById('edsCortes').textContent = stats.cortes_por_empresa['EDESUR'] || 0;
+                document.getElementById('ednCortes').textContent = stats.cortes_por_empresa['EDENOR'] || 0;
+                
+                // Get users per company
+                const cortesResp = await fetch('/api/cortes?limite=200');
+                const cortesData = await cortesResp.json();
+                const edesurCortes = cortesData.cortes.filter(c => c.empresa === 'EDESUR');
+                const edenorCortes = cortesData.cortes.filter(c => c.empresa === 'EDENOR');
+                document.getElementById('edsUsers').textContent = formatNumber(edesurCortes.reduce((a, c) => a + c.usuarios_afectados, 0));
+                document.getElementById('ednUsers').textContent = formatNumber(edenorCortes.reduce((a, c) => a + c.usuarios_afectados, 0));
+                
+                // Quick stats
+                document.getElementById('avgDuration').textContent = stats.promedio_duracion_horas ? stats.promedio_duracion_horas + 'h' : '-';
+                document.getElementById('mtCount').textContent = stats.cortes_por_tipo['media_tension'] || 0;
+                document.getElementById('btCount').textContent = stats.cortes_por_tipo['baja_tension'] || 0;
+                document.getElementById('avgRestoration').textContent = '~4h';
+                
+                // Update time
+                document.getElementById('lastUpdate').textContent = new Date().toLocaleString('es-AR');
+                
+                updateChartTipos(stats.cortes_por_tipo);
+                
+                // Load cortes
+                await loadCortes();
+                
+                // Load map
+                await loadMapFromENRE();
+                
+                // Load ranking
+                loadRanking();
+                
+            } catch (err) {
+                console.error('Error:', err);
+            }
+        }
+        
+        async function loadRanking() {
+            try {
+                const resp = await fetch('/api/ranking_partidos?limite=5');
+                const data = await resp.json();
+                
+                const container = document.getElementById('topPartidos');
+                if (!data.length) {
+                    container.innerHTML = '<div class="empty-state-small">Sin datos disponibles</div>';
+                    return;
+                }
+                
+                container.innerHTML = data.map((r, i) => `
+                    <div class="top-partido-item">
+                        <div class="top-partido-rank">${i + 1}</div>
+                        <span class="top-partido-name">${r.partido}</span>
+                        <span class="top-partido-count">${r.total_cortes}</span>
+                    </div>
+                `).join('');
+            } catch (err) {
+                console.error('Error loading ranking:', err);
+            }
+        }
+
+        async function loadCortes() {
+            const empresa = document.getElementById('filterEmpresa').value;
+            
+            let url = '/api/cortes?limite=50';
+            if (empresa) url += '&empresa=' + empresa;
+            
+            try {
+                const resp = await fetch(url);
+                const data = await resp.json();
+                allCortes = data.cortes;
+                document.getElementById('totalBadge').textContent = data.total;
+                renderCortesList(data.cortes);
+            } catch (err) {
+                console.error('Error:', err);
+            }
+        }
+
+        function renderCortesList(cortes) {
+            const container = document.getElementById('cortesList');
+            
+            if (!cortes.length) {
+                container.innerHTML = `
+                    <div class="empty-state">
+                        <i class="fas fa-check-circle" style="color: var(--green);"></i>
+                        <p>Sin cortes activos</p>
+                    </div>
+                `;
+                return;
+            }
+            
+            container.innerHTML = cortes.map(c => {
+                const cls = c.empresa === 'EDESUR' ? 'eds' : 'edn';
+                const tipo = c.tipo_corte === 'media_tension' ? 'MT' : 'BT';
+                
+                return `
+                    <div class="corte-item ${cls}" onclick="focusMap(${c.lat || 0}, ${c.lon || 0})">
+                        <div class="corte-header">
+                            <div>
+                                <div class="corte-zona">${c.partido}</div>
+                                <div class="corte-loc">${c.localidad}</div>
+                            </div>
+                            <span class="corte-badge ${cls}">${c.empresa}</span>
+                        </div>
+                        <div class="corte-stats">
+                            <div class="corte-stat corte-users">
+                                <i class="fas fa-users"></i>
+                                ${formatNumber(c.usuarios_afectados)}
+                            </div>
+                            <div class="corte-stat">
+                                <i class="fas fa-clock"></i>
+                                ${c.duracion_horas || 0}h
+                            </div>
+                            <div class="corte-stat">
+                                ${tipo}
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        function focusMap(lat, lon) {
+            if (lat && lon && lat !== 0) {
+                map.setView([lat, lon], 14);
+            }
+        }
+
+        async function loadMapFromENRE() {
+            try {
+                console.log('Cargando datos del ENRE...');
+                mapMarkers.forEach(m => map.removeLayer(m));
+                mapMarkers = [];
+                
+                const resp = await fetch('/api/enre-data');
+                const data = await resp.json();
+                
+                if (data.error) {
+                    throw new Error(data.error);
+                }
+                
+                console.log('Puntos recibidos:', data.total);
+                
+                if (!data.puntos || data.puntos.length === 0) {
+                    throw new Error('No se encontraron puntos');
+                }
+                
+                const markers = [];
+                let count = 0;
+                
+                data.puntos.forEach(p => {
+                    const isEDESUR = p.empresa === 'EDESUR';
+                    const color = isEDESUR ? COLORS.EDESUR : COLORS.EDENOR;
+                    const radius = Math.max(10, Math.min(30, Math.log(p.users + 1) * 8));
+                    
+                    const marker = L.circleMarker([p.lat, p.lon], {
+                        radius: radius,
+                        fillColor: color,
+                        color: '#fff',
+                        weight: 2,
+                        fillOpacity: 0.85
+                    }).addTo(map);
+                    
+                    marker.bindPopup(`
+                        <div class="popup-inner">
+                            <div class="popup-title">${p.partido} - ${p.localidad}</div>
+                            <div class="popup-row">
+                                <span class="popup-label">Empresa:</span>
+                                <span class="popup-value ${isEDESUR ? 'eds' : 'edn'}">${p.empresa}</span>
+                            </div>
+                            <div class="popup-row">
+                                <span class="popup-label">Usuarios:</span>
+                                <span class="popup-value users">${formatNumber(p.users)}</span>
+                            </div>
+                            <div class="popup-row">
+                                <span class="popup-label">Tipo:</span>
+                                <span class="popup-value">${p.tipo}</span>
+                            </div>
+                        </div>
+                    `);
+                    
+                    markers.push(marker);
+                    count++;
+                });
+                
+                console.log('Markers creados:', count);
+                
+                mapMarkers = markers;
+                document.getElementById('mapBadge').textContent = count + ' ubicaciones';
+                
+                const group = L.featureGroup(markers);
+                map.fitBounds(group.getBounds().pad(0.1));
+                
+            } catch (err) {
+                console.log('Error cargando ENRE:', err.message);
+                await loadMapFromAPI();
+            }
+        }
+
+        async function loadMapFromAPI() {
+            try {
+                mapMarkers.forEach(m => map.removeLayer(m));
+                mapMarkers = [];
+                
+                const resp = await fetch('/api/mapa');
+                const geojson = await resp.json();
+                
+                geojson.features.forEach(f => {
+                    const p = f.properties;
+                    if (p.lat && p.lon) {
+                        const color = COLORS[p.empresa] || '#666';
+                        const radius = Math.max(8, Math.min(25, Math.log(p.usuarios + 1) * 6));
+                        
+                        const marker = L.circleMarker([p.lat, p.lon], {
+                            radius: radius,
+                            fillColor: color,
+                            color: '#fff',
+                            weight: 2,
+                            fillOpacity: 0.85
+                        }).addTo(map);
+                        
+                        marker.bindPopup(`
+                            <div class="popup-inner">
+                                <div class="popup-title">${p.partido} - ${p.localidad}</div>
+                                <div class="popup-row">
+                                    <span class="popup-label">Empresa:</span>
+                                    <span class="popup-value ${p.empresa === 'EDESUR' ? 'eds' : 'edn'}">${p.empresa}</span>
+                                </div>
+                                <div class="popup-row">
+                                    <span class="popup-label">Usuarios:</span>
+                                    <span class="popup-value users">${formatNumber(p.usuarios)}</span>
+                                </div>
+                            </div>
+                        `);
+                        
+                        mapMarkers.push(marker);
+                    }
+                });
+                
+                document.getElementById('mapBadge').textContent = mapMarkers.length + ' ubicaciones';
+                
+            } catch (err) {
+                console.error('Error:', err);
+            }
+        }
+
+        async function loadEvolucion() {
+            try {
+                const resp = await fetch(`/api/evolucion?dias=${currentRange}`);
+                const data = await resp.json();
+                updateChartEvolucion(data);
+            } catch (err) {
+                console.error('Error:', err);
+            }
+        }
+
+        function updateChartEvolucion(data) {
+            const ctx = document.getElementById('chartEvolucion').getContext('2d');
+            if (chartEvolucion) chartEvolucion.destroy();
+            
+            const labels = data.map(d => {
+                const parts = d.timestamp.split(' ');
+                return parts[1] ? parts[1].substring(0, 5) : d.timestamp.substring(10, 16);
+            });
+            
+            chartEvolucion = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: labels,
+                    datasets: [
+                        {
+                            label: 'EDESUR',
+                            data: data.map(d => d.eds_sin || 0),
+                            borderColor: COLORS.EDESUR,
+                            backgroundColor: COLORS.EDESUR + '15',
+                            fill: true,
+                            tension: 0.4,
+                            borderWidth: 2.5,
+                            pointRadius: 0,
+                            pointHoverRadius: 6
+                        },
+                        {
+                            label: 'EDENOR',
+                            data: data.map(d => d.edn_sin || 0),
+                            borderColor: COLORS.EDENOR,
+                            backgroundColor: COLORS.EDENOR + '15',
+                            fill: true,
+                            tension: 0.4,
+                            borderWidth: 2.5,
+                            pointRadius: 0,
+                            pointHoverRadius: 6
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    interaction: { intersect: false, mode: 'index' },
+                    plugins: {
+                        legend: { 
+                            position: 'top',
+                            labels: { usePointStyle: true, padding: 20 }
+                        }
+                    },
+                    scales: {
+                        x: { 
+                            grid: { display: false },
+                            ticks: { maxTicksLimit: 8 }
+                        },
+                        y: { 
+                            beginAtZero: true,
+                            grid: { color: '#f0f0f0' }
+                        }
+                    }
+                }
+            });
+        }
+
+        function updateChartTipos(data) {
+            const ctx = document.getElementById('chartTipos').getContext('2d');
+            if (chartTipos) chartTipos.destroy();
+            
+            const labels = Object.keys(data).map(t => t === 'media_tension' ? 'Media Tensión' : 'Baja Tensión');
+            const values = Object.values(data);
+            const colors = Object.keys(data).map(t => t === 'media_tension' ? COLORS.EDESUR : COLORS.EDENOR);
+            
+            chartTipos = new Chart(ctx, {
+                type: 'doughnut',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        data: values,
+                        backgroundColor: colors,
+                        borderWidth: 0
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    cutout: '65%',
+                    plugins: {
+                        legend: {
+                            position: 'bottom',
+                            labels: { padding: 15, usePointStyle: true }
+                        }
+                    }
+                }
+            });
+        }
+
+        function setRange(days) {
+            currentRange = days;
+            document.querySelectorAll('.chart-tab').forEach((btn, i) => {
+                btn.classList.toggle('active', [7,14,30][i] === days);
+            });
+            loadEvolucion();
+        }
+
+        async function refreshData() {
+            const btn = document.querySelector('.btn-refresh');
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Actualizando...';
+            btn.disabled = true;
+            
+            try {
+                await fetch('/api/scrape', { method: 'POST' });
+                await loadData();
+                await loadEvolucion();
+            } catch (err) {
+                console.error('Error:', err);
+            } finally {
+                btn.innerHTML = '<i class="fas fa-rotate"></i> Actualizar';
+                btn.disabled = false;
+            }
+        }
+
+        function formatNumber(n) {
+            return new Intl.NumberFormat('es-AR').format(n);
+        }
+
+        document.addEventListener('DOMContentLoaded', () => {
+            initMap();
+            loadData();
+            loadEvolucion();
+            setInterval(loadData, 300000);
+            
+            document.querySelectorAll('.nav-item').forEach(item => {
+                item.addEventListener('click', () => {
+                    const tab = item.dataset.tab;
+                    switchTab(tab);
+                });
+            });
+            
+            document.querySelectorAll('.info-tab').forEach(tab => {
+                tab.addEventListener('click', () => {
+                    const infoTab = tab.dataset.infoTab;
+                    switchInfoTab(infoTab);
+                });
+            });
+        });
+
+        function switchTab(tabName) {
+            document.querySelectorAll('.nav-item').forEach(item => {
+                item.classList.toggle('active', item.dataset.tab === tabName);
+            });
+            
+            document.querySelectorAll('.page-section').forEach(section => {
+                section.classList.remove('active');
+            });
+            
+            document.getElementById('tab-' + tabName).classList.add('active');
+            
+            if (tabName === 'dashboard') {
+                setTimeout(() => {
+                    if (map) map.invalidateSize();
+                }, 100);
+            }
+            
+            if (tabName === 'info') {
+                loadInfoData();
+            }
+        }
+
+        function switchInfoTab(tabName) {
+            document.querySelectorAll('.info-tab').forEach(tab => {
+                tab.classList.toggle('active', tab.dataset.infoTab === tabName);
+            });
+            
+            ['activos', 'historial', 'empresas'].forEach(t => {
+                document.getElementById('info-content-' + t).style.display = t === tabName ? 'block' : 'none';
+            });
+        }
+
+        async function loadInfoData() {
+            try {
+                const resp = await fetch('/api/cortes?limite=200');
+                const data = await resp.json();
+                
+                // Update stats grid
+                document.getElementById('infoTotalCortes').textContent = data.total;
+                document.getElementById('infoTotalUsers').textContent = formatNumber(data.cortes.reduce((a, c) => a + c.usuarios_afectados, 0));
+                document.getElementById('infoEdesurCount').textContent = data.cortes.filter(c => c.empresa === 'EDESUR').length;
+                document.getElementById('infoEdenorCount').textContent = data.cortes.filter(c => c.empresa === 'EDENOR').length;
+                
+                document.getElementById('activosBody').innerHTML = data.cortes.map(c => {
+                    const tipoLabel = c.tipo_corte === 'media_tension' ? 'MT' : 'BT';
+                    const empresaClass = c.empresa === 'EDESUR' ? 'eds' : 'edn';
+                    const inicio = c.inicio_corte ? new Date(c.inicio_corte).toLocaleDateString('es-AR') : '-';
+                    const duracion = c.duracion_horas || 0;
+                    
+                    return `
+                        <tr>
+                            <td>${c.partido || '-'}</td>
+                            <td>${c.localidad || '-'}</td>
+                            <td><span class="empresa-tag ${empresaClass}">${c.empresa}</span></td>
+                            <td>${tipoLabel}</td>
+                            <td>${formatNumber(c.usuarios_afectados)}</td>
+                            <td>${duracion}h</td>
+                            <td>${inicio}</td>
+                        </tr>
+                    `;
+                }).join('');
+                
+                const statsResp = await fetch('/api/estadisticas');
+                const stats = await statsResp.json();
+                
+                // Update last update badge in Acerca
+                document.getElementById('lastUpdateBadge').textContent = new Date().toLocaleString('es-AR');
+                
+                document.getElementById('edesurActivos').textContent = stats.cortes_por_empresa['EDESUR'] || 0;
+                document.getElementById('edenorActivos').textContent = stats.cortes_por_empresa['EDENOR'] || 0;
+                
+                const edesurCortes = data.cortes.filter(c => c.empresa === 'EDESUR');
+                const edenorCortes = data.cortes.filter(c => c.empresa === 'EDENOR');
+                
+                document.getElementById('edesurUsers').textContent = formatNumber(edesurCortes.reduce((a, c) => a + c.usuarios_afectados, 0));
+                document.getElementById('edenorUsers').textContent = formatNumber(edenorCortes.reduce((a, c) => a + c.usuarios_afectados, 0));
+                
+                const edesurAvg = edesurCortes.length ? (edesurCortes.reduce((a, c) => a + (c.duracion_horas || 0), 0) / edesurCortes.length).toFixed(1) : 0;
+                const edenorAvg = edenorCortes.length ? (edenorCortes.reduce((a, c) => a + (c.duracion_horas || 0), 0) / edenorCortes.length).toFixed(1) : 0;
+                
+                document.getElementById('edesurPromedio').textContent = edesurAvg + 'h';
+                document.getElementById('edenorPromedio').textContent = edenorAvg + 'h';
+                
+                // Tipo mayoritario
+                const edesurMT = edesurCortes.filter(c => c.tipo_corte === 'media_tension').length;
+                const edenormt = edenorCortes.filter(c => c.tipo_corte === 'media_tension').length;
+                document.getElementById('edesurTipo').textContent = edesurMT > (edesurCortes.length - edesurMT) ? 'Media Tensión' : 'Baja Tensión';
+                document.getElementById('edenorTipo').textContent = edenormt > (edenorCortes.length - edenormt) ? 'Media Tensión' : 'Baja Tensión';
+                
+                document.getElementById('historialBody').innerHTML = data.cortes.slice(0, 50).map(c => {
+                    const inicio = c.inicio_corte ? new Date(c.inicio_corte).toLocaleDateString('es-AR') : '-';
+                    const empresaClass = c.empresa === 'EDESUR' ? 'eds' : 'edn';
+                    return `
+                        <tr>
+                            <td>${inicio}</td>
+                            <td>${c.partido || '-'}</td>
+                            <td>${c.localidad || '-'}</td>
+                            <td><span class="empresa-tag ${empresaClass}">${c.empresa}</span></td>
+                            <td>${formatNumber(c.usuarios_afectados)}</td>
+                        </tr>
+                    `;
+                }).join('');
+                
+            } catch (err) {
+                console.error('Error loading info data:', err);
+            }
+        }
+
+        function filterCortes() {
+            const search = document.getElementById('searchInput').value.toLowerCase();
+            const rows = document.querySelectorAll('#tableActivos tbody tr');
+            
+            rows.forEach(row => {
+                const text = row.textContent.toLowerCase();
+                row.style.display = text.includes(search) ? '' : 'none';
+            });
+        }
+    </script>
+</body>
+</html>

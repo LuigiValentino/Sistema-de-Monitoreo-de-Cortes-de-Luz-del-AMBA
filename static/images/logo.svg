@@ -1,0 +1,44 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <defs>
+    <linearGradient id="bgGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#1a4c7c"/>
+      <stop offset="100%" style="stop-color:#0a2342"/>
+    </linearGradient>
+    <linearGradient id="boltGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" style="stop-color:#ffd700"/>
+      <stop offset="50%" style="stop-color:#ffb800"/>
+      <stop offset="100%" style="stop-color:#e6a500"/>
+    </linearGradient>
+    <filter id="glow">
+      <feGaussianBlur stdDeviation="3" result="coloredBlur"/>
+      <feMerge>
+        <feMergeNode in="coloredBlur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+  </defs>
+  
+  <!-- Background -->
+  <rect width="512" height="512" rx="80" fill="url(#bgGrad)"/>
+  
+  <!-- Outer ring -->
+  <circle cx="256" cy="256" r="220" fill="none" stroke="#ffd700" stroke-width="6" opacity="0.4"/>
+  <circle cx="256" cy="256" r="190" fill="none" stroke="#ffd700" stroke-width="3" opacity="0.2"/>
+  
+  <!-- Main bolt -->
+  <path d="M280 80 L180 230 L230 230 L160 432 L340 200 L270 200 L320 80 Z" 
+        fill="url(#boltGrad)" 
+        filter="url(#glow)"
+        stroke="#fff" 
+        stroke-width="4"
+        stroke-linejoin="round"/>
+  
+  <!-- Small accent bolts -->
+  <path d="M120 320 L100 380 L120 380 L90 440" 
+        fill="none" stroke="#ffd700" stroke-width="4" stroke-linecap="round" opacity="0.6"/>
+  <path d="M392 320 L412 380 L392 380 L422 440" 
+        fill="none" stroke="#ffd700" stroke-width="4" stroke-linecap="round" opacity="0.6"/>
+  
+  <!-- Top shine -->
+  <ellipse cx="256" cy="100" rx="60" ry="20" fill="#fff" opacity="0.1"/>
+</svg>
